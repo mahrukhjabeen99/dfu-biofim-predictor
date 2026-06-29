@@ -1,59 +1,45 @@
 import streamlit as st
 import pandas as pd
 
-# 1. PERSISTENT DATA LOADING
+# 1. DATA LOADING
 @st.cache_data
 def load_data():
     return {
         'nano_lib': pd.read_csv('Master_Integrated_NanoFormulation_Library_v6.xlsx - Nano Formulation Synthesis.csv'),
-        'study_data': pd.read_csv('Nanoparticle_Biofilm_Study_Data_16.xlsx - Study Data.csv'),
-        'agg_data': pd.read_csv('Aggregated_Research_Data_v6.xlsx - Research Data Matrix.csv'),
-        'bio_v10': pd.read_csv('Biofilm_Nanoparticle_Research_Data_V10.xlsx - Research Data.csv'),
-        'bio_final': pd.read_csv('Biofilm_Research_Data_Final_v4.xlsx - Biofilm Data.csv'),
-        'cons_data': pd.read_csv('Consolidated_Biofilm_Data_Final.xlsx - Biofilm Data.csv'),
-        'peptide': pd.read_csv('DFU_Peptide_Database.xlsx - Sheet1.csv'),
-        'bamp': pd.read_csv('experiment (1).csv') # As requested
+        'bamp': pd.read_csv('experiment (1).csv') 
     }
 
 data = load_data()
 
-# 2. INITIALIZE SESSION STATE
+# 2. PERSISTENCE SETUP
 if 'app_data' not in st.session_state:
-    st.session_state['app_data'] = {'p1': {}, 'p2': {}, 'p3': {}}
+    st.session_state['app_data'] = {'nano_id': '', 'size': 50.0}
 
-# 3. NAVIGATION
+# 3. INTERFACE
 st.sidebar.title("Navigation")
-page = st.sidebar.radio("Go to", ["Phase 1: Metadata", "Phase 2: Characterization", "Phase 3: Assay Results", "Phase 4: Prediction"])
+page = st.sidebar.radio("Go to", ["Phase 1: Metadata", "Phase 2: Characterization", "Phase 4: Prediction"])
 
-# 4. PERSISTENT INPUTS
 if page == "Phase 1: Metadata":
     st.header("Phase 1: Metadata")
-    st.session_state['app_data']['nano_id'] = st.text_input("Nano-ID:", value=st.session_state['app_data'].get('nano_id', ''))
+    st.session_state['app_data']['nano_id'] = st.text_input("Nano-ID:", value=st.session_state['app_data']['nano_id'])
     
 elif page == "Phase 2: Characterization":
     st.header("Phase 2: Characterization")
-    st.session_state['app_data']['size'] = st.number_input("Mean Diameter (nm):", value=st.session_state['app_data'].get('size', 50.0))
-    st.session_state['app_data']['zeta'] = st.number_input("Zeta Potential (mV):", value=st.session_state['app_data'].get('zeta', 0.0))
-
-elif page == "Phase 3: Assay Results":
-    st.header("Phase 3: Assay Results")
-    st.session_state['app_data']['od'] = st.number_input("Biofilm Mass (OD):", value=st.session_state['app_data'].get('od', 0.0))
-    st.session_state['app_data']['mic'] = st.number_input("MIC (µg/mL):", value=st.session_state['app_data'].get('mic', 0.0))
+    st.session_state['app_data']['size'] = st.number_input("Mean Diameter (nm):", value=st.session_state['app_data']['size'])
 
 elif page == "Phase 4: Prediction":
     st.header("Phase 4: Prediction")
-    if st.button("Generate Modulation Efficacy Index"):
-        # Example logic: Search in the primary nano_lib
+    if st.button("Generate Index"):
         df = data['nano_lib']
-        size = st.session_state['app_data'].get('size', 50.0)
+        size = st.session_state['app_data']['size']
         
-        # Simple proximity matching
-        matches = df[(df.iloc[:, 0] >= size - 10) & (df.iloc[:, 0] <= size + 10)]
+        # Match using the column named 'particle size (nm, mean ± SD)'
+        # Adjust the string below if your column name is different
+        col_name = 'particle size (nm, mean ± SD)'
+        matches = df[(df[col_name] >= size - 10) & (df[col_name] <= size + 10)]
         
         if not matches.empty:
-            st.success(f"Match Found: {matches.iloc[0, 1]}% reduction.")
+            st.success(f"Result for {st.session_state['app_data']['nano_id']}: Match found.")
+            st.dataframe(matches.head())
         else:
-            st.warning("No direct match in the library.")
-            
-        st.write("Summary of your input:")
-        st.json(st.session_state['app_data'])
+            st.warning(f"No match for {size}nm in library.")
